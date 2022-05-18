@@ -49,7 +49,7 @@ def plot_pushups(pushups_users_dates):
         return (discord.File(f, filename=filename), total)
 
 
-def note_pushups(state, message):
+async def note_pushups(state, message):
     """Modifies the global state"""
     for pushups in list(
         filter(lambda x: type(x) == type(1), map(parse_pushup, message.content.split()))
@@ -84,11 +84,12 @@ async def on_message(message):
         async with message.channel.typing():
             state = defaultdict(dict)
             async for message in message.channel.history(limit=200):
-                _, state = note_pushups(state, message)
+                _, state = await note_pushups(state, message)
 
             await send_current_stats(state, message.channel)
     else:
-        contained_pushup, state = note_pushups(state, message)
+        await message.add_reaction("👌")
+        contained_pushup, state = await note_pushups(state, message)
         if contained_pushup:
             await send_current_stats(state, message.channel)
 
