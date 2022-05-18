@@ -2,56 +2,73 @@ import discord
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from datetime import timedelta
+from itertools import chain
 
 client = discord.Client()
 
+token = "&"
 
-def maybe_int(x):
+state = defaultdict(dict)
+
+
+def parse_pushup(x):
     try:
-        return int(x)
+        if x[0] == token:
+            return int(x[1:])
     except:
-        return None
+        pass
 
-def accumulate(it):
-    s = 0
-    for i in it:
-        s += i
-        yield s
 
 def plot_pushups(pushups_users_dates):
-    fix, (ax, bx) = plt.subplots(2, 1)
+
+    user_per_day = defaultdict(lambda: defaultdict(int))
     for user, data in pushups_users_dates.items():
-        ax.plot(
-            list(data.keys()), list(data.values()), label=user.nick or user.name
-        )
-        bx.plot(
-            list(data.keys()), list(accumulate(data.values())), label=user.nick or user.name
-        )
+        for datetime, number in data.items():
+            user_per_day[user][datetime.date()] += number
+
+    total_per_day = defaultdict(int)
+    for data in pushups_users_dates.values():
+        for datetime, number in data.items():
+            total_per_day[datetime.date()] += number
+
+    total = sum(total_per_day.values())
+
+    fix, (ax, bx) = plt.subplots(2, 1)
+    for user, data in user_per_day.items():
+        label = user.name
+        ax.plot(list(data.keys()), list(data.values()), label=label)
     ax.legend()
+
+    bx.plot(list(total_per_day.keys()), list(total_per_day.values()), label="total")
     bx.legend()
+
     fix.tight_layout()
     filename = "pushups.png"
     fix.savefig(filename)
     with open(filename, "rb") as f:
-        return discord.File(f, filename=filename)
+        return (discord.File(f, filename=filename), total)
 
-state = defaultdict(dict)
 
-def note_pushups(message):
+def note_pushups(state, message):
     """Modifies the global state"""
-    global state
     for pushups in list(
-        filter(lambda x: type(x) == type(1), map(maybe_int, message.content.split()))
+        filter(lambda x: type(x) == type(1), map(parse_pushup, message.content.split()))
     ):
-        if message.author == client.user:
-            continue
-
-        date = message.created_at.date()
+        at = message.created_at
         for x in range(5, 10):
-            state[message.author][date + timedelta(days=x)] = pushups + x**2
-        return True
-    return False
+            state[message.author][at + timedelta(days=x)] = pushups + x**2
+        return (True, state)
+    return (False, state)
 
+
+async def send_current_stats(state, channel):
+    (file, total) = plot_pushups(state)
+    await channel.send(file=file)
+    await channel.send(f"Total: {total}")
+
+@client.event
+async def on_ready():
+    print("CONNECTED")
 
 @client.event
 async def on_message(message):
@@ -60,15 +77,21 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith("refresh"):
+    if "pushup" not in message.channel.name.lower():
+        return
+
+    if message.content.startswith(token + "refresh"):
         async with message.channel.typing():
-            await message.channel.send('Re-reading all history!')
-            state = {}
+            state = defaultdict(dict)
             async for message in message.channel.history(limit=200):
-                note_pushups(message)
+                _, state = note_pushups(state, message)
+
+            await send_current_stats(state, message.channel)
     else:
-        if note_pushups(message):
-            await message.channel.send(file=plot_pushups(state))
+        contained_pushup, state = note_pushups(state, message)
+        if contained_pushup:
+            await send_current_stats(state, message.channel)
+
 
 with open("discord-token.txt", "r") as f:
     client.run(f.read().strip())
