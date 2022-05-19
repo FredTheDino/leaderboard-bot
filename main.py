@@ -37,10 +37,16 @@ def plot_pushups(pushups_users_dates):
         label = user.name
         ax.plot(list(data.keys()), list(data.values()), label=label)
     ax.legend()
+    ax.set(xticklabels=[])
+    ax.set(title="Pushups per day per person")
+    ax.set(xlabel=None)
     ax.set_ylim(ymin=0)
 
     bx.plot(list(total_per_day.keys()), list(total_per_day.values()), label="total")
     bx.legend()
+    bx.set(xticklabels=[])
+    bx.set(title="Total pushups per day")
+    ax.set(xlabel=None)
     bx.set_ylim(ymin=0)
 
     fix.tight_layout()
