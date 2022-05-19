@@ -51,7 +51,8 @@ def plot_pushups(pushups_users_dates):
 async def note_pushups(state, message):
     """Modifies the global state"""
     if pushups := parse_pushup(message.content):
-        await message.add_reaction("👌")
+        emoji = next(emoji for emoji in message.guild.emojis if emoji.name == "lesslie") or "👌"
+        await message.add_reaction(emoji)
         at = message.created_at
         state[message.author][at] = pushups
         return (True, state)
