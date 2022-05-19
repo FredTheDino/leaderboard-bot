@@ -37,9 +37,11 @@ def plot_pushups(pushups_users_dates):
         label = user.name
         ax.plot(list(data.keys()), list(data.values()), label=label)
     ax.legend()
+    ax.set_ylim(ymin=0)
 
     bx.plot(list(total_per_day.keys()), list(total_per_day.values()), label="total")
     bx.legend()
+    bx.set_ylim(ymin=0)
 
     fix.tight_layout()
     filename = "pushups.png"
