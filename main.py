@@ -20,7 +20,6 @@ def parse_pushup(x):
 
 
 def plot_pushups(pushups_users_dates):
-
     user_per_day = defaultdict(lambda: defaultdict(int))
     for user, data in pushups_users_dates.items():
         for datetime, number in data.items():
@@ -51,12 +50,10 @@ def plot_pushups(pushups_users_dates):
 
 async def note_pushups(state, message):
     """Modifies the global state"""
-    for pushups in list(
-        filter(lambda x: type(x) == type(1), map(parse_pushup, message.content.split()))
-    ):
+    if pushups := parse_pushup(message.content):
+        await message.add_reaction("👌")
         at = message.created_at
-        for x in range(5, 10):
-            state[message.author][at + timedelta(days=x)] = pushups + x**2
+        state[message.author][at] = pushups
         return (True, state)
     return (False, state)
 
@@ -95,7 +92,6 @@ async def on_message(message):
     elif command == "stats":
         await send_current_stats(state, message.channel)
     else:
-        await message.add_reaction("👌")
         contained_pushup, state = await note_pushups(state, message)
 
 
