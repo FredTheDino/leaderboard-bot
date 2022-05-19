@@ -6,7 +6,7 @@ from itertools import chain
 
 client = discord.Client()
 
-token = ""
+token = "!"
 
 state = defaultdict(dict)
 
@@ -74,24 +74,29 @@ async def on_ready():
 async def on_message(message):
     """Modifies the global state"""
     global state
-    if message.author == client.user:
+    if message.author.bot:
         return
 
     if "challenge" not in message.channel.name.lower():
         return
 
-    if message.content.startswith(token + "refresh"):
+    if message.content[0] != token:
+        return
+
+    command = message.content[1:]
+
+    if command == "recount":
         async with message.channel.typing():
             state = defaultdict(dict)
             async for message in message.channel.history(limit=200):
                 _, state = await note_pushups(state, message)
 
             await send_current_stats(state, message.channel)
+    elif command == "stats":
+        await send_current_stats(state, message.channel)
     else:
         await message.add_reaction("👌")
         contained_pushup, state = await note_pushups(state, message)
-        if contained_pushup:
-            await send_current_stats(state, message.channel)
 
 
 with open("discord-token.txt", "r") as f:
