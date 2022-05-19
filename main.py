@@ -6,7 +6,7 @@ from itertools import chain
 
 client = discord.Client()
 
-token = "&"
+token = ""
 
 state = defaultdict(dict)
 
@@ -77,7 +77,7 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if "pushup" not in message.channel.name.lower():
+    if "challenge" not in message.channel.name.lower():
         return
 
     if message.content.startswith(token + "refresh"):
