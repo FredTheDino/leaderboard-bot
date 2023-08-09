@@ -8,8 +8,6 @@ import re
 
 client = discord.Client()
 
-token = "!"
-
 state = defaultdict(dict)
 
 stats_re = re.compile("!stats", re.IGNORECASE)
@@ -81,7 +79,9 @@ def plot_pushups(pushups_users_dates):
 async def note_distance(state, message):
     """Modifies the global state"""
     if distance := find_distance(message.content):
-        emoji = choice(list(emoji for emoji in message.guild.emojis if emoji.name == "lesslie") + ["👌", "🔫", "🚩"])
+        print("Got something!")
+        emoji = choice(list(emoji for emoji in message.guild.emojis if "lesslie" in emoji.name) + choice(["👌", "🔫", "🚩"]))
+        print("Will print emoji:", emoji)
         at = message.created_at.date()
         state[message.author][at] = distance
         await message.add_reaction(emoji)
@@ -107,6 +107,7 @@ async def on_message(message):
 
     channel_name = message.channel.name.lower()
     if "workout" not in channel_name and "💪" not in channel_name: return
+    print(channel_name, message.content)
 
     _, state = await note_distance(state, message)
     if stats_re.search(message.content):
