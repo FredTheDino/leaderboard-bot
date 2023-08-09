@@ -78,7 +78,8 @@ def plot_pushups(pushups_users_dates):
 
 async def note_distance(state, message):
     """Modifies the global state"""
-    if distance := find_distance(message.content):
+    distance = find_distance(message.content)
+    if distance is not None:
         print("Got something!")
         emoji = choice(list(emoji for emoji in message.guild.emojis if "lesslie" in emoji.name) + choice(["👌", "🔫", "🚩"]))
         print("Will print emoji:", emoji)
