@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from datetime import timedelta
 from itertools import chain
+from random import choice
+import re
 
 client = discord.Client()
 
@@ -10,27 +12,38 @@ token = "!"
 
 state = defaultdict(dict)
 
+stats_re = re.compile("!stats", re.IGNORECASE)
 
-def parse_pushup(x):
-    try:
-        if x[0] == token:
-            return int(x[1:])
-    except:
-        pass
+def find_distance(x):
+    distance_re = re.compile("(\d+(?:\.\d+)?).{0,2}(mil|km)", re.IGNORECASE)
+    total = None
+    for (d, unit) in distance_re.findall(x):
+        try:    
+            d = float(d)
+            match unit:
+                case "mil":
+                    d = d * 10
+                case "km":
+                    d = d
+            total = 0 if total is None else total
+            total += d
+        except:
+            pass
+    return total
 
 
 def plot_pushups(pushups_users_dates):
     total_per_day = defaultdict(int)
     for data in pushups_users_dates.values():
         for datetime, number in data.items():
-            total_per_day[datetime.date()] += number
+            total_per_day[datetime] += number
 
     user_per_day = defaultdict(lambda: defaultdict(int))
     for user, data in pushups_users_dates.items():
         for d in total_per_day.keys():
             user_per_day[user][d] = 0
         for datetime, number in data.items():
-            user_per_day[user][datetime.date()] += number
+            user_per_day[user][datetime] += number
 
     total = sum(total_per_day.values())
 
@@ -43,7 +56,7 @@ def plot_pushups(pushups_users_dates):
         ax.plot(x, y, label=label, marker='o')
     ax.legend()
     ax.set(xticklabels=[])
-    ax.set(title="Pushups per day per person")
+    ax.set(title="km per day per person")
     ax.set(xlabel=None)
     ax.set_ylim(ymin=0)
 
@@ -53,26 +66,26 @@ def plot_pushups(pushups_users_dates):
     bx.plot(x, y, label="total", marker='o')
     bx.legend()
     bx.set(xticklabels=[])
-    bx.set(title="Total pushups per day")
+    bx.set(title="Total distance traveled per day")
     ax.set(xlabel=None)
     bx.set_ylim(ymin=0)
 
     fix.tight_layout()
     fix.set_figwidth(10)
     fix.set_figwidth(10)
-    filename = "pushups.png"
+    filename = "distance.png"
     fix.savefig(filename)
     with open(filename, "rb") as f:
         return (discord.File(f, filename=filename), total)
 
 
-async def note_pushups(state, message):
+async def note_distance(state, message):
     """Modifies the global state"""
-    if pushups := parse_pushup(message.content):
-        emoji = next(emoji for emoji in message.guild.emojis if emoji.name == "lesslie") or "👌"
+    if distance := find_distance(message.content):
+        emoji = choice(list(emoji for emoji in message.guild.emojis if emoji.name == "lesslie") or ["👌", "🔫", "🚩"])
+        at = message.created_at.date()
+        state[message.author][at] = distance
         await message.add_reaction(emoji)
-        at = message.created_at
-        state[message.author][at] = pushups
         return (True, state)
     return (False, state)
 
@@ -93,26 +106,12 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    if "challenge" not in message.channel.name.lower():
-        return
+    channel_name = message.channel.name.lower()
+    if "workout" not in channel_name and "💪" not in channel_name: return
 
-    if message.content[0] != token:
-        return
-
-    command = message.content[1:]
-
-    if command == "recount":
-        async with message.channel.typing():
-            state = defaultdict(dict)
-            async for message in message.channel.history(limit=1000):
-                _, state = await note_pushups(state, message)
-
-            await send_current_stats(state, message.channel)
-    elif command == "stats":
+    _, state = await note_distance(state, message)
+    if stats_re.search(message.content):
         await send_current_stats(state, message.channel)
-    else:
-        contained_pushup, state = await note_pushups(state, message)
-
 
 with open("discord-token.txt", "r") as f:
     client.run(f.read().strip())
