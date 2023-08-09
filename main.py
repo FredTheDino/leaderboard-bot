@@ -20,11 +20,10 @@ def find_distance(x):
     for (d, unit) in distance_re.findall(x):
         try:    
             d = float(d)
-            match unit:
-                case "mil":
-                    d = d * 10
-                case "km":
-                    d = d
+            if unit == "mil":
+                d = d * 10
+            if unit == "km":
+                d = d
             total = 0 if total is None else total
             total += d
         except:
@@ -82,7 +81,7 @@ def plot_pushups(pushups_users_dates):
 async def note_distance(state, message):
     """Modifies the global state"""
     if distance := find_distance(message.content):
-        emoji = choice(list(emoji for emoji in message.guild.emojis if emoji.name == "lesslie") or ["👌", "🔫", "🚩"])
+        emoji = choice(list(emoji for emoji in message.guild.emojis if emoji.name == "lesslie") + ["👌", "🔫", "🚩"])
         at = message.created_at.date()
         state[message.author][at] = distance
         await message.add_reaction(emoji)
