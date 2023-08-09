@@ -80,9 +80,7 @@ async def note_distance(state, message):
     """Modifies the global state"""
     distance = find_distance(message.content)
     if distance is not None:
-        print("Got something!")
-        emoji = choice(list(emoji for emoji in message.guild.emojis if "lesslie" in emoji.name) + choice(["👌", "🔫", "🚩"]))
-        print("Will print emoji:", emoji)
+        emoji = choice(list(emoji for emoji in message.guild.emojis if "lesslie" in emoji.name) + ["👌", "🔫", "🚩"])
         at = message.created_at.date()
         state[message.author][at] = distance
         await message.add_reaction(emoji)
@@ -108,7 +106,6 @@ async def on_message(message):
 
     channel_name = message.channel.name.lower()
     if "workout" not in channel_name and "💪" not in channel_name: return
-    print(channel_name, message.content)
 
     _, state = await note_distance(state, message)
     if stats_re.search(message.content):
