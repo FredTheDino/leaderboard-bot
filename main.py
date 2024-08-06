@@ -90,8 +90,6 @@ async def note_distance(state, message):
         emoji = choice(list(emoji for emoji in message.guild.emojis if "lesslie" in emoji.name) + ["👌", "🔫", "🚩"])
         at = message.created_at
         state[message.author.name][at] = new_stats
-        for n in range(20):
-            state[message.author.name][at - timedelta(days=n)] = new_stats
         await message.add_reaction(emoji)
         with open('state.pickle', 'wb') as f:
             pickle.dump(state, f)
