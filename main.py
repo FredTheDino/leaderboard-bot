@@ -17,6 +17,9 @@ state = defaultdict(dict)
 
 stats_re = re.compile("!stats", re.IGNORECASE)
 
+def sumit(x):
+    return sum(x.values())
+
 def unit_dist(amount, suffix):
     # km is default unit
     if suffix == "m":
@@ -124,7 +127,7 @@ def summarize(user_data):
             # We ignore weekends
             if at.isoweekday() in [6, 7]: continue
             margin = margin - 1
-            if (scores.get(at) or Counter()).total() > streak_limit:
+            if sumit((scores.get(at) or Counter())) > streak_limit:
                 streak += 1
                 # We could skip resetting of margin here
                 margin = 2
@@ -135,7 +138,7 @@ def summarize(user_data):
         for (date, s) in data.items():
             bonus = 0
             # Any daily activity nets you 10 extra points! :D
-            tot = s.total()
+            tot = sumit(s)
             if tot > 0:
                 bonus += 10
             # Streak bonus of 10% keeps alive for 3 days
@@ -147,7 +150,7 @@ def summarize(user_data):
             bonus += tot * c
             user_bonuses_per_day[user][date] += bonus
 
-    total_per_day = { d: sum(u[d].total() for u in raw_user_per_day.values())
+    total_per_day = { d: sum(sumit(u[d]) for u in raw_user_per_day.values())
                         + sum(u[d] for u in user_bonuses_per_day.values()) for d in all_days }
 
     
@@ -155,7 +158,7 @@ def summarize(user_data):
     total = int(sum(total_per_day.values()))
     total_bonus = int(sum(sum(v.values()) for v in user_bonuses_per_day.values()))
 
-    user_per_day = { u: { d: i.total() + user_bonuses_per_day[u][d] for (d, i) in v.items() } for (u, v) in raw_user_per_day.items() }
+    user_per_day = { u: { d: sumit(i) + user_bonuses_per_day[u][d] for (d, i) in v.items() } for (u, v) in raw_user_per_day.items() }
 
     fix, (ax, bx) = plt.subplots(2, 1)
     for user, data in user_per_day.items():
