@@ -1,5 +1,7 @@
 discord-token.txt
-pushups.png
+*.png
+*.pickle
+
 
 # Githubs Python gitignore
 # Source: https://github.com/github/gitignore

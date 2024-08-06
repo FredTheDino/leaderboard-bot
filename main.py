@@ -1,59 +1,172 @@
 import discord
-import matplotlib.pyplot as plt
-from collections import defaultdict
+from collections import defaultdict, Counter
 from datetime import timedelta
-from itertools import chain
 from random import choice
+import matplotlib.pyplot as plt
 import re
+from difflib import get_close_matches
+from typing import (Tuple, List)
+import pickle
 
-client = discord.Client()
+intents = discord.Intents.default()
+intents.message_content = True
+
+client = discord.Client(intents=intents)
 
 state = defaultdict(dict)
 
 stats_re = re.compile("!stats", re.IGNORECASE)
 
-def find_distance(x):
-    distance_re = re.compile("(\d+(?:\.\d+)?).{0,2}(mil|km)", re.IGNORECASE)
-    total = None
-    for (d, unit) in distance_re.findall(x):
+def unit_dist(amount, suffix):
+    # km is default unit
+    if suffix == "m":
+        amount = amount / 1000
+    elif suffix == "km":
+        amount = amount
+    elif suffix == "mil":
+        amount = amount * 10
+    return amount
+
+def unit_count(amount, suffix):
+    amount = int(amount)
+    if suffix == "dussin":
+        amount = amount * 12
+    elif suffix == "st":
+        amount = amount
+    return amount
+
+def unit_time(amount, suffix):
+    # Minutes is the unit of time
+    if get_close_matches(suffix, ["s", "sekunder", "sec"], cutoff=0.6):
+        amount = amount / 60
+    elif get_close_matches(suffix, ["m", "min", "minuter"], cutoff=0.6):
+        amount = amount
+    elif get_close_matches(suffix, ["h", "time", "hour"], cutoff=0.6):
+        amount = amount * 60
+    return amount
+
+activities = {
+    "löpning": (["spring", "löpning", "jogga"], unit_dist, 100.0),
+    "promenad": (["promenad", "gick", "promenerade"], unit_dist, 50.0),
+    "cyklade": (["cyklade", "mountain", "bike"], unit_dist, 25.0),
+    "armhävning": (["armhävning", "pushup"], unit_count, 1.0),
+    "situp": (["situp", "mage"], unit_count, 1.0),
+    "squat": (["squat"], unit_count, 1.0),
+    "burpee": (["burpee"], unit_count, 1.0),
+    "dans": (["lindihop", "dansa", "folkdans"], unit_time, 1.0),
+    "klättring": (["bouldering", "topprep", "klättrade"], unit_time, 1.0),
+    "plankan": (["planka", "planking"], unit_time, 5.0),
+}
+
+def find_likely_activity(activity, known):
+    aliases = [x for (aliases, _, _) in known.values() for x in aliases]
+    best = get_close_matches(activity.lower(), aliases, n=1, cutoff=0.6)
+    best = (best or [None])[0]
+    for (k, (alises, _, _)) in known.items():
+        if best in alises: return k
+
+def parse_message(x):
+    global activities
+    distance_re = re.compile(r"(\w+)\W{0,2}(\d+(?:\.\d+)?)\W{0,2}(\w+)", re.IGNORECASE)
+    total = []
+    for (kind, amount, unit) in distance_re.findall(x):
         try:    
-            d = float(d)
-            if unit == "mil":
-                d = d * 10
-            if unit == "km":
-                d = d
-            total = 0 if total is None else total
-            total += d
+            amount = float(amount)
         except:
-            pass
+            continue
+        likely = find_likely_activity(kind, activities)
+        if likely is None: continue
+        (_, unit_parse, _) = activities[likely]
+        total.append((likely, unit_parse(amount, unit)))
     return total
 
+async def note_distance(state, message):
+    """Modifies the global state"""
+    new_stats = parse_message(message.content)
+    if new_stats:
+        emoji = choice(list(emoji for emoji in message.guild.emojis if "lesslie" in emoji.name) + ["👌", "🔫", "🚩"])
+        at = message.created_at
+        state[message.author.name][at] = new_stats
+        for n in range(20):
+            state[message.author.name][at - timedelta(days=n)] = new_stats
+        await message.add_reaction(emoji)
+        with open('state.pickle', 'wb') as f:
+            pickle.dump(state, f)
+        return (True, state)
+    return (False, state)
 
-def plot_pushups(pushups_users_dates):
-    total_per_day = defaultdict(int)
-    for data in pushups_users_dates.values():
-        for datetime, number in data.items():
-            total_per_day[datetime] += number
+def score(known_activites, entries: List[Tuple[str, float]]):
+    return Counter({ name: known_activites[name][2] * count for (name, count) in entries })
 
-    user_per_day = defaultdict(lambda: defaultdict(int))
-    for user, data in pushups_users_dates.items():
-        for d in total_per_day.keys():
-            user_per_day[user][d] = 0
-        for datetime, number in data.items():
-            user_per_day[user][datetime] += number
+def summarize(user_data):
+    global activities
+    all_days = set()
+    for data in user_data.values():
+        for datetime, entries in data.items():
+            all_days.add(datetime.date())
 
-    total = sum(total_per_day.values())
+    raw_user_per_day = dict()
+    for user, data in user_data.items():
+        if user not in raw_user_per_day:
+            raw_user_per_day[user] = dict()
+            for d in all_days:
+                raw_user_per_day[user][d] = Counter()
+        for datetime, entries in data.items():
+            raw_user_per_day[user][datetime.date()] += score(activities, entries)
+
+    def streak_length(scores, today):
+        streak = 0
+        streak_limit = 50
+        margin = 2
+        at = today
+        while margin > 0:
+            at = at - timedelta(1)
+            # We ignore weekends
+            if at.isoweekday() in [6, 7]: continue
+            margin = margin - 1
+            if (scores.get(at) or Counter()).total() > streak_limit:
+                streak += 1
+                # We could skip resetting of margin here
+                margin = 2
+        return streak
+
+    user_bonuses_per_day = defaultdict(lambda: defaultdict(float))
+    for (user, data) in raw_user_per_day.items():
+        for (date, s) in data.items():
+            bonus = 0
+            # Any daily activity nets you 10 extra points! :D
+            tot = s.total()
+            if tot > 0:
+                bonus += 10
+            # Streak bonus of 10% keeps alive for 3 days
+            if streak_length(raw_user_per_day[user], date) > 0:
+                bonus += tot * 0.1
+            # Diversity bonus
+            diversity_bonus_req = 50
+            c = [0.0, 0.0, 0.05, 0.08, 0.10, 0.11][max(5, sum(s > diversity_bonus_req for s in s.values()))]
+            bonus += tot * c
+            user_bonuses_per_day[user][date] += bonus
+
+    total_per_day = { d: sum(u[d].total() for u in raw_user_per_day.values())
+                        + sum(u[d] for u in user_bonuses_per_day.values()) for d in all_days }
+
+    
+    streaks = { user: streak_length(scores_per_day, max(all_days)) for (user, scores_per_day) in raw_user_per_day.items() }
+    total = int(sum(total_per_day.values()))
+    total_bonus = int(sum(sum(v.values()) for v in user_bonuses_per_day.values()))
+
+    user_per_day = { u: { d: i.total() + user_bonuses_per_day[u][d] for (d, i) in v.items() } for (u, v) in raw_user_per_day.items() }
 
     fix, (ax, bx) = plt.subplots(2, 1)
     for user, data in user_per_day.items():
-        label = user.name
+        label = user
         xy = sorted(data.items())
         x = list(map(lambda x:x[0], xy))
         y = list(map(lambda x:x[1], xy))
         ax.plot(x, y, label=label, marker='o')
     ax.legend()
     ax.set(xticklabels=[])
-    ax.set(title="km per day per person")
+    ax.set(title="points per day per person")
     ax.set(xlabel=None)
     ax.set_ylim(ymin=0)
 
@@ -63,39 +176,36 @@ def plot_pushups(pushups_users_dates):
     bx.plot(x, y, label="total", marker='o')
     bx.legend()
     bx.set(xticklabels=[])
-    bx.set(title="Total distance traveled per day")
+    bx.set(title="Total points per day")
     ax.set(xlabel=None)
     bx.set_ylim(ymin=0)
 
     fix.tight_layout()
     fix.set_figwidth(10)
     fix.set_figwidth(10)
-    filename = "distance.png"
+    filename = "points.png"
     fix.savefig(filename)
     with open(filename, "rb") as f:
-        return (discord.File(f, filename=filename), total)
+        return (discord.File(f, filename=filename), total, total_bonus, streaks)
 
 
-async def note_distance(state, message):
-    """Modifies the global state"""
-    distance = find_distance(message.content)
-    if distance is not None:
-        emoji = choice(list(emoji for emoji in message.guild.emojis if "lesslie" in emoji.name) + ["👌", "🔫", "🚩"])
-        at = message.created_at.date()
-        state[message.author][at] = distance
-        await message.add_reaction(emoji)
-        return (True, state)
-    return (False, state)
 
 
 async def send_current_stats(state, channel):
-    (file, total) = plot_pushups(state)
+    (file, total, total_bonus, streaks) = summarize(state)
     await channel.send(file=file)
-    await channel.send(f"Total: {total}")
+    best = "\n".join([ f"{u}: {l}" for (l, u) in sorted([(l, u) for u, l in streaks.items() if l > 0 ])])
+    await channel.send(f"Total points: {total}\nTotal bonus: {total_bonus}\n== STREAKS ==\n{best}")
 
 @client.event
 async def on_ready():
-    print("CONNECTED")
+    global state
+    try:
+        with open('state.pickle', 'rb') as f:
+            state = defaultdict(dict, **pickle.load(f))
+    except:
+        pass
+    print("LOADED")
 
 @client.event
 async def on_message(message):
@@ -111,5 +221,6 @@ async def on_message(message):
     if stats_re.search(message.content):
         await send_current_stats(state, message.channel)
 
-with open("discord-token.txt", "r") as f:
-    client.run(f.read().strip())
+if __name__ == "__main__":
+    with open("discord-token.txt", "r") as f:
+        client.run(f.read().strip())
