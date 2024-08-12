@@ -59,6 +59,7 @@ activities = {
     "dans": (["lindihop", "dansa", "folkdans"], unit_time, 1.0),
     "klättring": (["bouldering", "topprep", "klättrade"], unit_time, 1.0),
     "plankan": (["planka", "planking"], unit_time, 5.0),
+    "stretching": (["stretching", "stretch", "stretchande"], unit_time, 5.0),
 }
 
 def find_likely_activity(activity, known):
