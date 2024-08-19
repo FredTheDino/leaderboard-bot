@@ -48,18 +48,32 @@ def unit_time(amount, suffix):
         amount = amount * 60
     return amount
 
+# '<,'>s/ *\"\([^\"]*\)\": .*, unit_\(.*\), \(\d*\).*/\1: \2 x \3
+# löpning: dist x 100
+# promenad: dist x 50
+# cyklade: dist x 30
+# armhävning: count x 2
+# situp: count x 2
+# squat: count x 2
+# burpee: count x 4
+# dans: time x 2
+# plankan: time x 10
+# klättring: time x 4
+# stretching: time x 2
+# meditera: time x 1
 activities = {
-    "löpning": (["spring", "löpning", "jogga"], unit_dist, 100.0),
-    "promenad": (["promenad", "gick", "promenerade"], unit_dist, 50.0),
-    "cyklade": (["cyklade", "mountain", "bike"], unit_dist, 25.0),
-    "armhävning": (["armhävning", "pushup"], unit_count, 1.0),
-    "situp": (["situp", "mage"], unit_count, 1.0),
-    "squat": (["squat"], unit_count, 1.0),
-    "burpee": (["burpee"], unit_count, 1.0),
-    "dans": (["lindihop", "dansa", "folkdans"], unit_time, 1.0),
-    "klättring": (["bouldering", "topprep", "klättrade"], unit_time, 1.0),
-    "plankan": (["planka", "planking"], unit_time, 5.0),
-    "stretching": (["stretching", "stretch", "stretchande"], unit_time, 5.0),
+    "löpning": (["spring", "löpning", "jogga"], unit_dist, 100),
+    "promenad": (["promenad", "gick", "promenerade"], unit_dist, 50),
+    "cyklade": (["cyklade", "mountain", "bike"], unit_dist, 30),
+    "armhävning": (["armhävning", "pushup"], unit_count, 2),
+    "situp": (["situp", "mage"], unit_count, 2),
+    "squat": (["squat"], unit_count, 2),
+    "burpee": (["burpee"], unit_count, 4),
+    "dans": (["lindihop", "dansa", "folkdans"], unit_time, 2),
+    "plankan": (["planka", "planking"], unit_time, 10),
+    "klättring": (["bouldering", "topprep", "klättrade"], unit_time, 4),
+    "stretching": (["stretching", "stretch", "stretchande"], unit_time, 2),
+    "meditera": (["meditera"], unit_time, 1),
 }
 
 def find_likely_activity(activity, known):
