@@ -49,6 +49,7 @@ def unit_time(amount, suffix):
     return amount
 
 # '<,'>s/ *\"\([^\"]*\)\": .*, unit_\(.*\), \(\d*\).*/\1: \2 x \3
+# körning: dist x 0
 # löpning: dist x 100
 # promenad: dist x 50
 # cyklade: dist x 30
@@ -63,6 +64,7 @@ def unit_time(amount, suffix):
 # meditera: time x 1
 activities = {
     "löpning": (["spring", "löpning", "jogga"], unit_dist, 100),
+    "köra": (["köra", "körabil", "bil"], unit_dist, 0),
     "promenad": (["promenad", "gick", "promenerade"], unit_dist, 50),
     "cyklade": (["cyklade", "mountain", "bike"], unit_dist, 30),
     "armhävning": (["armhävning", "pushup"], unit_count, 2),
