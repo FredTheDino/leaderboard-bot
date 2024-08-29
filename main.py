@@ -114,7 +114,7 @@ async def note_distance(state, message):
     return (False, state)
 
 def score(known_activites, entries: List[Tuple[str, float]]):
-    return Counter({ name: known_activites[name][2] * count for (name, count) in entries })
+    return Counter({ name: known_activites[name][2] * count for (name, count) in entries if count < 5000 })
 
 def summarize(user_data):
     global activities
