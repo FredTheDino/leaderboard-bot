@@ -7,7 +7,6 @@ import re
 from difflib import get_close_matches
 from typing import (Tuple, List)
 import pickle
-import json
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -115,7 +114,7 @@ async def note_distance(state, message):
     return (False, state)
 
 def score(known_activites, entries: List[Tuple[str, float]]):
-    return Counter({ name: known_activites[name][2] * count for (name, count) in entries if count < 5000 })
+    return Counter({ name: known_activites[name][2] * count for (name, count) in entries })
 
 def summarize(user_data):
     global activities
@@ -222,7 +221,6 @@ async def on_ready():
     try:
         with open('state.pickle', 'rb') as f:
             state = defaultdict(dict, **pickle.load(f))
-            print(json.dumps(state))
     except:
         pass
     print("LOADED")
