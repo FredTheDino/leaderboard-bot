@@ -7,6 +7,7 @@ import re
 from difflib import get_close_matches
 from typing import (Tuple, List)
 import pickle
+import json
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -221,6 +222,7 @@ async def on_ready():
     try:
         with open('state.pickle', 'rb') as f:
             state = defaultdict(dict, **pickle.load(f))
+            print(json.dumps(state))
     except:
         pass
     print("LOADED")
