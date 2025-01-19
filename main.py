@@ -106,7 +106,7 @@ async def note_distance(state, message):
     """Modifies the global state"""
     new_stats = parse_message(message.content)
     if new_stats:
-        emoji = choice(list(emoji for emoji in message.guild.emojis if "lesslie" in emoji.name) + ["👌", "🔫", "🚩"])
+        emoji = choice(list(emoji for emoji in message.guild.emojis if "lesslie" in emoji.name) + ["👌", "💪", "🏋️", "🦾", "🏅", "⭐", "🚀", "🚩"])
         at = message.created_at
         state[message.author.name][at] = new_stats
         await message.add_reaction(emoji)
